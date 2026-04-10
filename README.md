@@ -112,7 +112,87 @@ AIAutomation/
 
 ---
 
-## 🚀 Quick Start
+## 🐳 Docker (Recommended)
+
+The easiest way to run the entire stack — Ollama, backend, and frontend — in one command.
+
+### Prerequisites
+
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) installed and running
+
+### Run Everything
+
+```bash
+# 1. Clone/navigate to the project
+cd AIAutomation
+
+# 2. (Optional) Change the model in .env
+# OLLAMA_MODEL=mistral
+
+# 3. Start all services
+docker compose up --build
+```
+
+That's it. Docker will:
+1. Start **Ollama** and pull `llama3` automatically
+2. Build and start the **FastAPI backend**
+3. Build the **React app** and serve it via **Nginx**
+
+| Service | URL |
+|---------|-----|
+| 🌐 Frontend | http://localhost |
+| ⚡ Backend API | http://localhost:8000 |
+| 🤖 Ollama | http://localhost:11434 |
+
+### Useful Docker Commands
+
+```bash
+# Run in background
+docker compose up -d
+
+# View logs
+docker compose logs -f backend
+docker compose logs -f ollama
+
+# Stop everything
+docker compose down
+
+# Rebuild after code changes
+docker compose up --build
+
+# Change model without rebuilding
+OLLAMA_MODEL=mistral docker compose up -d
+
+# Remove all data (including downloaded models)
+docker compose down -v
+```
+
+### Docker Architecture
+
+```
+┌─────────────────────────────────────────────┐
+│           Docker Network: bridge             │
+│                                              │
+│  ┌──────────┐   ┌──────────┐  ┌──────────┐  │
+│  │ frontend │   │ backend  │  │  ollama  │  │
+│  │  :80     │──▶│  :8000   │─▶│  :11434  │  │
+│  │  nginx   │   │  fastapi │  │          │  │
+│  └──────────┘   └──────────┘  └──────────┘  │
+│                      │                       │
+│              ┌───────┴───────┐               │
+│              │    Volumes    │               │
+│              │ ollama_data   │  (models)     │
+│              │ hf_cache      │  (embeddings) │
+│              └───────────────┘               │
+└─────────────────────────────────────────────┘
+```
+
+> **GPU Support**: Uncomment the `deploy` section in `docker-compose.yml` to enable NVIDIA GPU passthrough to Ollama for faster inference.
+
+---
+
+## 🚀 Manual Setup (Without Docker)
+
 
 ### Prerequisites
 

@@ -1,0 +1,81 @@
+services:
+
+  # ── Ollama — Local LLM Server ──────────────────────────────────────────────
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ai_agent_ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      # Persist downloaded models so you don't re-download on restart
+      - ollama_data:/root/.ollama
+    restart: unless-stopped
+    # GPU support (uncomment if you have an NVIDIA GPU + nvidia-container-toolkit)
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+
+  # ── Model Puller — runs once to pull the model ────────────────────────────
+  ollama-pull:
+    image: ollama/ollama:latest
+    container_name: ai_agent_ollama_pull
+    depends_on:
+      - ollama
+    entrypoint: >
+      sh -c "
+        echo 'Waiting for Ollama to be ready...';
+        sleep 5;
+        ollama pull ${OLLAMA_MODEL:-llama3};
+        echo 'Model ready.';
+      "
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+    volumes:
+      - ollama_data:/root/.ollama
+    restart: "no"
+
+  # ── FastAPI Backend ────────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ai_agent_backend
+    ports:
+      - "8000:8000"
+    environment:
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3}
+      - OLLAMA_BASE_URL=http://ollama:11434
+    volumes:
+      # Cache HuggingFace embeddings model — avoids re-downloading on restart
+      - hf_cache:/app/.cache/huggingface
+    depends_on:
+      - ollama
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # ── React Frontend (served via Nginx) ─────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: ai_agent_frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  ollama_data:
+    name: ai_agent_ollama_models
+  hf_cache:
+    name: ai_agent_hf_cache

@@ -1,6 +1,7 @@
 // API client for the AI Automation Agent backend
-
-const BASE_URL = "http://localhost:8000";
+// In development: connects directly to FastAPI at localhost:8000
+// In production (Docker): Nginx proxies /api/* → backend:8000
+const BASE_URL = import.meta.env.PROD ? "/api" : "http://localhost:8000";
 
 export interface Action {
   tool: string;
