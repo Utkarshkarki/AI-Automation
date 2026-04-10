@@ -50,7 +50,7 @@ The AI Automation Agent is a self-contained, local-first AI system built with:
 
 ```
 ┌──────────────────────────────────────────────────────┐
-│              React + Vite Frontend (:5173)            │
+│              React + Vite Frontend (:5173)           │
 │   ┌──────────┐  ┌────────────────┐  ┌─────────────┐  │
 │   │ Metrics  │  │  Chat Panel    │  │   Memory    │  │
 │   │ Sidebar  │  │  (center)      │  │   Panel     │  │
@@ -58,21 +58,21 @@ The AI Automation Agent is a self-contained, local-first AI system built with:
 └──────────────────────────┬───────────────────────────┘
                            │ REST API
 ┌──────────────────────────▼───────────────────────────┐
-│              FastAPI Backend (:8000)                  │
-│                                                       │
+│              FastAPI Backend (:8000)                 │
+│                                                      │
 │   POST /run ──► agent/loop.py                        │
-│                     │                                 │
+│                     │                                │
 │          ┌──────────┼──────────┐                     │
 │          ▼          ▼          ▼                     │
 │      memory.py   llm.py    tools.py                  │
 │      (FAISS)   (Ollama)  (Registry)                  │
-│          │                    │                       │
+│          │                    │                      │
 │     rate_limiter.py      metrics.py                  │
 └──────────────────────────────────────────────────────┘
                            │
              ┌─────────────▼──────────────┐
-             │     Ollama (:11434)         │
-             │  llama3 / mistral / qwen    │
+             │     Ollama (:11434)        │
+             │  llama3 / mistral / qwen   │
              └────────────────────────────┘
 ```
 
