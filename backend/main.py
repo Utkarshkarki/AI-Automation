@@ -17,12 +17,15 @@ from dotenv import load_dotenv
 # Load .env before anything else so os.getenv() in core/config.py picks them up
 load_dotenv()
 
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from agent.loop import AgentLoop
 from agent.tools import build_executors
+from services.email.campaigns import start_scheduler, shutdown_scheduler
+from services.email.database import SessionLocal
+from services.email.repository import create_or_update_contact
 from services.email.service import EmailService
 from services.llm.service import LLMService
 from services.memory.service import MemoryService
@@ -90,6 +93,9 @@ async def startup():
     init_db()
     logger.info("✅ SQLite Database initialized")
 
+    # Start background scheduler
+    start_scheduler()
+
     health = llm_svc.check_health()
     if not health["ollama_running"]:
         logger.warning("⚠️  Ollama is NOT running. Start it with: ollama serve")
@@ -99,6 +105,10 @@ async def startup():
     else:
         logger.info(f"✅ Ollama ready | Model: {health['model']}")
     logger.info("=" * 60)
+
+@app.on_event("shutdown")
+async def shutdown():
+    shutdown_scheduler()
 
 
 # ---------------------------------------------------------------------------
@@ -143,3 +153,41 @@ def memory():
         "count": memory_svc.count,
         "entries": memory_svc.get_all(),
     }
+
+import csv
+import io
+
+@app.post("/api/leads/upload")
+async def upload_leads(file: UploadFile = File(...)):
+    """Upload a CSV file of leads and save them to the database."""
+    if not file.filename.endswith('.csv'):
+        raise HTTPException(status_code=400, detail="Only CSV files are allowed.")
+        
+    content = await file.read()
+    decoded = content.decode('utf-8')
+    reader = csv.DictReader(io.StringIO(decoded))
+    
+    count = 0
+    with SessionLocal() as db:
+        for row in reader:
+            email = row.get("email")
+            if not email:
+                continue
+            
+            # Map standard CSV columns to our schema
+            kwargs = {
+                "name": row.get("name"),
+                "company": row.get("company"),
+                "website": row.get("website"),
+                "linkedin": row.get("linkedin"),
+                "industry": row.get("industry"),
+                "pain_points": row.get("pain_points"),
+                "recent_news": row.get("recent_news"),
+            }
+            # Remove None values
+            kwargs = {k: v for k, v in kwargs.items() if v}
+            
+            create_or_update_contact(db, email=email, **kwargs)
+            count += 1
+            
+    return {"status": "success", "message": f"Uploaded {count} leads"}

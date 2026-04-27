@@ -51,6 +51,26 @@ TOOL_REGISTRY: dict[str, dict[str, Any]] = {
         "required": [],
         "optional": [],
     },
+    "create_template": {
+        "description": "Create a reusable email template. Use {{name}}, {{company}}, {{industry}} as variables.",
+        "required": ["name", "subject", "body"],
+        "optional": [],
+    },
+    "list_templates": {
+        "description": "List all available email templates.",
+        "required": [],
+        "optional": [],
+    },
+    "create_campaign": {
+        "description": "Create a new outreach campaign.",
+        "required": ["name"],
+        "optional": ["description"],
+    },
+    "start_campaign": {
+        "description": "Start sending a campaign to a list of contacts using a specific template.",
+        "required": ["campaign_id", "template_id", "contact_emails"],
+        "optional": [],
+    },
 }
 
 TOOL_EXECUTORS: dict[str, Any] = {}
@@ -153,4 +173,24 @@ def build_executors(email_svc: EmailService) -> None:
     register_tool(
         "list_contacts",
         lambda: email_svc.list_contacts(),
+    )
+    
+    register_tool(
+        "create_template",
+        lambda name, subject, body: email_svc.create_template(name=name, subject=subject, body=body),
+    )
+
+    register_tool(
+        "list_templates",
+        lambda: email_svc.list_templates(),
+    )
+
+    register_tool(
+        "create_campaign",
+        lambda name, description=None: email_svc.create_campaign(name=name, description=description),
+    )
+
+    register_tool(
+        "start_campaign",
+        lambda campaign_id, template_id, contact_emails: email_svc.start_campaign(campaign_id=campaign_id, template_id=template_id, contact_emails=contact_emails),
     )

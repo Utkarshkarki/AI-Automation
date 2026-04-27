@@ -26,6 +26,12 @@ from .repository import (
     create_or_update_contact,
     get_contact_by_email,
     list_all_contacts,
+    create_template,
+    get_template,
+    list_templates,
+    create_campaign,
+    get_campaign,
+    link_contact_to_campaign,
 )
 from .smtp import smtp_send
 
@@ -152,4 +158,35 @@ class EmailService:
         with SessionLocal() as db:
             contacts = list_all_contacts(db)
             return {"count": len(contacts), "contacts": contacts}
+
+    def create_template(self, name: str, subject: str, body: str) -> dict:
+        """Create a reusable email template with {{variables}}."""
+        with SessionLocal() as db:
+            t = create_template(db, name, subject, body)
+            return {"status": "success", "template_id": t.id}
+            
+    def list_templates(self) -> dict:
+        """List all available templates."""
+        with SessionLocal() as db:
+            templates = list_templates(db)
+            return {"count": len(templates), "templates": templates}
+            
+    def create_campaign(self, name: str, description: str = None) -> dict:
+        """Create a new campaign."""
+        with SessionLocal() as db:
+            c = create_campaign(db, name, description)
+            return {"status": "success", "campaign_id": c.id}
+            
+    def start_campaign(self, campaign_id: int, template_id: int, contact_emails: list[str]) -> dict:
+        """Queue a list of contacts into a campaign for background sending."""
+        queued = 0
+        with SessionLocal() as db:
+            for email in contact_emails:
+                try:
+                    link_contact_to_campaign(db, email, campaign_id, template_id)
+                    queued += 1
+                except Exception as e:
+                    logger.error(f"Failed to queue {email}: {e}")
+                    
+        return {"status": "success", "queued_count": queued}
 
