@@ -23,7 +23,6 @@ from pydantic import BaseModel
 
 from agent.loop import AgentLoop
 from agent.tools import build_executors
-from services.email.campaigns import start_scheduler, shutdown_scheduler
 from services.email.database import SessionLocal
 from services.email.repository import create_or_update_contact
 from services.email.service import EmailService
@@ -93,9 +92,6 @@ async def startup():
     init_db()
     logger.info("✅ SQLite Database initialized")
 
-    # Start background scheduler
-    start_scheduler()
-
     health = llm_svc.check_health()
     if not health["ollama_running"]:
         logger.warning("⚠️  Ollama is NOT running. Start it with: ollama serve")
@@ -108,7 +104,7 @@ async def startup():
 
 @app.on_event("shutdown")
 async def shutdown():
-    shutdown_scheduler()
+    logger.info("[main] Shutting down.")
 
 
 # ---------------------------------------------------------------------------

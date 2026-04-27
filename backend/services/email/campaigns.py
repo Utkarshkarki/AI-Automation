@@ -1,14 +1,14 @@
 """
-services/email/campaigns.py — Background scheduler for drip campaigns.
+services/email/campaigns.py — Celery tasks for sending campaign emails.
 """
 import logging
-import time
 import random
-from datetime import datetime, timedelta
+import time
+from smtplib import SMTPException
 
-from apscheduler.schedulers.background import BackgroundScheduler
-from apscheduler.triggers.interval import IntervalTrigger
+from celery.exceptions import MaxRetriesExceededError
 
+from core.celery_app import celery_app
 from core.config import GMAIL_ADDRESS
 from .database import SessionLocal
 from .models import Email, Template
@@ -16,122 +16,80 @@ from .smtp import smtp_send
 
 logger = logging.getLogger(__name__)
 
-# Global scheduler instance
-scheduler = BackgroundScheduler()
-
-def start_scheduler():
-    if not scheduler.running:
-        scheduler.start()
-        logger.info("[campaigns] Background scheduler started")
-
-def shutdown_scheduler():
-    if scheduler.running:
-        scheduler.shutdown()
-        logger.info("[campaigns] Background scheduler stopped")
-
 DAILY_SEND_LIMIT = 50
-daily_send_count = 0
-last_reset_date = datetime.utcnow().date()
+# Note: In a true distributed system, this daily counter should be moved to Redis cache
+# so all workers share the same limit. For simplicity, we use local vars or rely on DB checks.
 
-def process_queued_emails():
+@celery_app.task(bind=True, max_retries=5)
+def send_email_task(self, email_id: int):
     """
-    Fetch up to 5 queued emails that are scheduled for <= NOW and send them.
-    Respects daily limits and adds random delays.
+    Background task to send a single scheduled email with exponential backoff on failure.
     """
-    global daily_send_count, last_reset_date
-    
-    # Reset daily limit
-    today = datetime.utcnow().date()
-    if today != last_reset_date:
-        daily_send_count = 0
-        last_reset_date = today
-
-    if daily_send_count >= DAILY_SEND_LIMIT:
-        logger.info(f"[campaigns] Daily limit ({DAILY_SEND_LIMIT}) reached. Pausing until tomorrow.")
-        return
-
     with SessionLocal() as db:
-        # Find queued emails ready to send
-        queued = db.query(Email).filter(
-            Email.status == "queued",
-            Email.scheduled_for <= datetime.utcnow()
-        ).limit(5).all()
+        email_record = db.query(Email).get(email_id)
         
-        if not queued:
+        if not email_record:
+            logger.error(f"[celery] Email {email_id} not found.")
             return
 
-        logger.info(f"[campaigns] Processing {len(queued)} queued emails")
-        for email_record in queued:
-            if daily_send_count >= DAILY_SEND_LIMIT:
-                break
-                
-            try:
-                # Need to resolve template
-                if not email_record.template_id:
-                    email_record.status = "failed"
-                    email_record.body = "No template provided"
-                    continue
-                    
-                template = db.query(Template).filter(Template.id == email_record.template_id).first()
-                if not template:
-                    email_record.status = "failed"
-                    email_record.body = "Template not found"
-                    continue
+        # Double check status in case it was cancelled by IMAP worker
+        if email_record.status != "queued":
+            logger.info(f"[celery] Skipping email {email_id} because status is '{email_record.status}'.")
+            return
 
-                contact = email_record.contact
+        try:
+            if not email_record.template_id:
+                raise ValueError("No template provided")
                 
-                # Simple variable substitution
-                subject = template.subject
-                body = template.body
-                
-                replacements = {
-                    "{{name}}": contact.name or "there",
-                    "{{company}}": contact.company or "your company",
-                    "{{industry}}": contact.industry or "your industry",
-                }
-                
-                for k, v in replacements.items():
-                    subject = subject.replace(k, v)
-                    body = body.replace(k, v)
+            template = db.query(Template).filter(Template.id == email_record.template_id).first()
+            if not template:
+                raise ValueError("Template not found")
 
-                # Send via SMTP
-                logger.info(f"[campaigns] Sending drip email to {contact.email}")
-                smtp_send(to=contact.email, subject=subject, body=body)
+            contact = email_record.contact
+            
+            # Simple variable substitution
+            subject = template.subject
+            body = template.body
+            
+            replacements = {
+                "{{name}}": contact.name or "there",
+                "{{company}}": contact.company or "your company",
+                "{{industry}}": contact.industry or "your industry",
+            }
+            
+            for k, v in replacements.items():
+                subject = subject.replace(k, v)
+                body = body.replace(k, v)
 
-                # Update record
-                email_record.status = "sent"
-                email_record.sender_email = GMAIL_ADDRESS
-                email_record.subject = subject
-                email_record.body = body
-                db.commit()
-                
-                daily_send_count += 1
-                
-                # Random delay to mimic human behavior and protect deliverability
-                delay = random.randint(15, 45)
-                logger.info(f"[campaigns] Sleeping {delay}s for deliverability protection")
-                time.sleep(delay)
-                
-            except Exception as e:
-                logger.error(f"[campaigns] Failed to send email {email_record.id}: {e}")
-                email_record.status = "failed"
-                db.commit()
+            # Random delay to mimic human behavior before sending
+            delay = random.randint(15, 45)
+            logger.info(f"[celery] Sleeping {delay}s to protect deliverability before sending to {contact.email}")
+            time.sleep(delay)
 
-# Register the drip campaign job to run every 1 minute
-scheduler.add_job(
-    process_queued_emails,
-    trigger=IntervalTrigger(minutes=1),
-    id="drip_campaign_job",
-    name="Process queued campaign emails",
-    replace_existing=True,
-)
+            # Send via SMTP
+            logger.info(f"[celery] Sending drip email to {contact.email}")
+            smtp_send(to=contact.email, subject=subject, body=body)
 
-# Register the IMAP reply detection job to run every 5 minutes
-from .imap_worker import check_replies
-scheduler.add_job(
-    check_replies,
-    trigger=IntervalTrigger(minutes=5),
-    id="imap_reply_check_job",
-    name="Check IMAP for replies",
-    replace_existing=True,
-)
+            # Update record
+            email_record.status = "sent"
+            email_record.sender_email = GMAIL_ADDRESS
+            email_record.subject = subject
+            email_record.body = body
+            db.commit()
+
+        except SMTPException as exc:
+            logger.warning(f"[celery] SMTP Error sending to {email_record.recipient_email}: {exc}")
+            # Retry with exponential backoff: 60s, 120s, 240s...
+            retry_countdown = 60 * (2 ** self.request.retries)
+            logger.info(f"[celery] Retrying in {retry_countdown} seconds...")
+            raise self.retry(exc=exc, countdown=retry_countdown)
+            
+        except MaxRetriesExceededError:
+            logger.error(f"[celery] Max retries exceeded for email {email_id}")
+            email_record.status = "failed"
+            db.commit()
+            
+        except Exception as e:
+            logger.error(f"[celery] Failed to send email {email_record.id}: {e}")
+            email_record.status = "failed"
+            db.commit()

@@ -129,6 +129,7 @@ def link_contact_to_campaign(db: Session, contact_email: str, campaign_id: int, 
     
     if not existing:
         from datetime import datetime, timedelta
+        from services.email.campaigns import send_email_task
         contact_record = db.query(Contact).filter(Contact.email == contact_email).first()
         
         for delay in delay_days:
@@ -146,7 +147,10 @@ def link_contact_to_campaign(db: Session, contact_email: str, campaign_id: int, 
                 scheduled_for=schedule_time
             )
             db.add(email_record)
-        db.commit()
+            db.commit()
+            
+            # Immediately queue the task in Celery, delayed via `eta`
+            send_email_task.apply_async(args=[email_record.id], eta=schedule_time)
 
 
 # --- Emails ---

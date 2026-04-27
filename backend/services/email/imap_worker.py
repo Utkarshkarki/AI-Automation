@@ -6,6 +6,7 @@ import imaplib
 import logging
 from email.header import decode_header
 
+from core.celery_app import celery_app
 from core.config import GMAIL_ADDRESS, GMAIL_APP_PASSWORD
 from services.email.database import SessionLocal
 from services.email.models import Contact, Email as EmailModel, Event
@@ -42,10 +43,11 @@ def extract_body(msg):
         return msg.get_payload(decode=True).decode(errors='ignore')
     return ""
 
-def check_replies():
+@celery_app.task
+def check_replies_task():
     """
-    Connect to IMAP, fetch UNSEEN emails, check if they are from known contacts.
-    If so, classify intent via LLM and stop active campaigns for that contact.
+    Celery task to connect to IMAP, fetch UNSEEN emails, and classify intent via LLM.
+    Runs periodically via Celery Beat.
     """
     if not GMAIL_ADDRESS or not GMAIL_APP_PASSWORD:
         logger.warning("[imap] Gmail credentials missing, skipping IMAP check.")

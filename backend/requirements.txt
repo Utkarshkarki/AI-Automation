@@ -7,5 +7,6 @@ scikit-learn
 requests
 python-dotenv
 SQLAlchemy>=2.0
-apscheduler>=3.10.0
+celery>=5.3.0
+redis>=5.0.0
 python-multipart>=0.0.9
