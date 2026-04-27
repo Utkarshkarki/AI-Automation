@@ -6,3 +6,4 @@ numpy
 scikit-learn
 requests
 python-dotenv
+SQLAlchemy>=2.0

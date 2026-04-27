@@ -84,6 +84,12 @@ class RunRequest(BaseModel):
 async def startup():
     logger.info("=" * 60)
     logger.info("✉️  Email Outreach Agent v5.0 — Starting up")
+
+    # Initialize SQLite Database
+    from services.email.database import init_db
+    init_db()
+    logger.info("✅ SQLite Database initialized")
+
     health = llm_svc.check_health()
     if not health["ollama_running"]:
         logger.warning("⚠️  Ollama is NOT running. Start it with: ollama serve")

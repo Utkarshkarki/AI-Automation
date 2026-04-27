@@ -19,7 +19,8 @@ import requests
 from core.config import GMAIL_ADDRESS, OLLAMA_BASE_URL, OLLAMA_MODEL
 from core.exceptions import AgentError
 
-from .log import append_to_log, get_recent
+from .database import SessionLocal
+from .repository import create_sent_email, get_recent_emails
 from .smtp import smtp_send
 
 logger = logging.getLogger(__name__)
@@ -86,21 +87,13 @@ class EmailService:
 
     def send(self, to: str, subject: str, body: str, cc: str = None) -> dict:
         """
-        Send a real email via Gmail SMTP and persist to the sent log.
+        Send a real email via Gmail SMTP and persist to the SQLite DB.
         Returns a confirmation dict.
         """
         smtp_send(to=to, subject=subject, body=body, cc=cc)
 
-        entry = {
-            "timestamp": datetime.utcnow().isoformat(),
-            "from": GMAIL_ADDRESS,
-            "to": to,
-            "cc": cc,
-            "subject": subject,
-            "body_preview": body[:200],
-            "status": "sent",
-        }
-        append_to_log(entry)
+        with SessionLocal() as db:
+            create_sent_email(db, sender=GMAIL_ADDRESS, to=to, subject=subject, body=body, cc=cc)
 
         return {
             "status": "sent",
@@ -110,6 +103,8 @@ class EmailService:
         }
 
     def list_sent(self, limit: int = 5) -> dict:
-        """Return the most recently sent emails from the local log."""
-        emails = get_recent(limit=int(limit))
+        """Return the most recently sent emails from the database."""
+        with SessionLocal() as db:
+            emails = get_recent_emails(db, limit=int(limit))
         return {"count": len(emails), "emails": emails}
+
