@@ -20,7 +20,13 @@ from core.config import GMAIL_ADDRESS, OLLAMA_BASE_URL, OLLAMA_MODEL
 from core.exceptions import AgentError
 
 from .database import SessionLocal
-from .repository import create_sent_email, get_recent_emails
+from .repository import (
+    create_sent_email,
+    get_recent_emails,
+    create_or_update_contact,
+    get_contact_by_email,
+    list_all_contacts,
+)
 from .smtp import smtp_send
 
 logger = logging.getLogger(__name__)
@@ -41,13 +47,28 @@ class EmailService:
     ) -> dict:
         """
         Ask the local LLM to write an outreach email.
+        Pulls rich contact context from the database if available.
         Returns {"subject": str, "body": str, "recipient": str}.
         """
+        # Fetch rich context
+        with SessionLocal() as db:
+            contact = get_contact_by_email(db, recipient)
+            
+        context_block = ""
+        if contact:
+            context_block = "Use this context to hyper-personalize the email:\n"
+            if contact.get("name"): context_block += f"- Recipient Name: {contact['name']}\n"
+            if contact.get("company"): context_block += f"- Company: {contact['company']}\n"
+            if contact.get("industry"): context_block += f"- Industry: {contact['industry']}\n"
+            if contact.get("pain_points"): context_block += f"- Pain Points: {contact['pain_points']}\n"
+            if contact.get("recent_news"): context_block += f"- Recent News: {contact['recent_news']}\n"
+        
         prompt = (
             f"Write a {tone} outreach email.\n"
             f"From: {sender_name}\n"
             f"To: {recipient}\n"
             f"Purpose: {purpose}\n\n"
+            f"{context_block}\n"
             "Return ONLY a JSON object with exactly two keys: "
             "'subject' (string) and 'body' (string). "
             "No markdown, no explanation."
@@ -107,4 +128,28 @@ class EmailService:
         with SessionLocal() as db:
             emails = get_recent_emails(db, limit=int(limit))
         return {"count": len(emails), "emails": emails}
+
+    def add_contact(self, email: str, **kwargs) -> dict:
+        """Add or update a contact with rich personalization fields."""
+        with SessionLocal() as db:
+            contact = create_or_update_contact(db, email, **kwargs)
+            return {
+                "status": "success",
+                "message": f"Contact {email} saved.",
+                "id": contact.id
+            }
+            
+    def get_contact(self, email: str) -> dict:
+        """Retrieve full details for a specific contact."""
+        with SessionLocal() as db:
+            contact = get_contact_by_email(db, email)
+            if not contact:
+                return {"error": f"Contact {email} not found."}
+            return contact
+            
+    def list_contacts(self) -> dict:
+        """List all contacts in the database."""
+        with SessionLocal() as db:
+            contacts = list_all_contacts(db)
+            return {"count": len(contacts), "contacts": contacts}
 

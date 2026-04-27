@@ -36,6 +36,21 @@ TOOL_REGISTRY: dict[str, dict[str, Any]] = {
         "required": [],
         "optional": ["limit"],
     },
+    "add_contact": {
+        "description": "Add or update a lead/contact. Use this to save rich context BEFORE drafting an email for maximum personalization.",
+        "required": ["email"],
+        "optional": ["name", "company", "website", "linkedin", "industry", "pain_points", "recent_news", "status"],
+    },
+    "get_contact": {
+        "description": "Retrieve full context and details for a specific contact.",
+        "required": ["email"],
+        "optional": [],
+    },
+    "list_contacts": {
+        "description": "List all contacts in the database.",
+        "required": [],
+        "optional": [],
+    },
 }
 
 TOOL_EXECUTORS: dict[str, Any] = {}
@@ -123,4 +138,19 @@ def build_executors(email_svc: EmailService) -> None:
     register_tool(
         "list_sent_emails",
         lambda limit=5: email_svc.list_sent(limit=limit),
+    )
+
+    register_tool(
+        "add_contact",
+        lambda email, **kwargs: email_svc.add_contact(email=email, **kwargs),
+    )
+
+    register_tool(
+        "get_contact",
+        lambda email: email_svc.get_contact(email=email),
+    )
+
+    register_tool(
+        "list_contacts",
+        lambda: email_svc.list_contacts(),
     )

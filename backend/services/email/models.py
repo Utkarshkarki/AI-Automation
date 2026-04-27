@@ -29,6 +29,16 @@ class Contact(Base):
     email = Column(String, unique=True, index=True, nullable=False)
     name = Column(String)
     company = Column(String)
+    
+    # Personalization fields
+    website = Column(String)
+    linkedin = Column(String)
+    industry = Column(String)
+    pain_points = Column(Text)
+    recent_news = Column(Text)
+    
+    status = Column(String, default="lead")
+    last_contacted = Column(DateTime)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     emails = relationship("Email", back_populates="contact")
