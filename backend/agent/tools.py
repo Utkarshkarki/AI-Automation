@@ -1,42 +1,20 @@
+"""
+agent/tools.py — Tool registry and executors.
+Uses EmailService (injected) rather than importing email internals directly.
+"""
 import logging
-import os
 from typing import Any
 
-import requests
-
-from .email_service import get_sent_emails, send_real_email
+from core.exceptions import AgentError, HallucinationError, MissingParameterError
+from services.email.service import EmailService
 
 logger = logging.getLogger(__name__)
-
-OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3")
-
-
-class AgentError(Exception):
-    """Base class for all agent errors."""
-    pass
-
-
-class HallucinationError(AgentError):
-    """Raised when the LLM produces a tool name not in the registry."""
-    def __init__(self, tool_name: str):
-        super().__init__(f"Tool '{tool_name}' is not in the tool registry (possible hallucination).")
-        self.tool_name = tool_name
-
-
-class MissingParameterError(AgentError):
-    """Raised when a required tool parameter is missing from the action."""
-    def __init__(self, param: str, tool: str):
-        super().__init__(f"Missing required parameter '{param}' for tool '{tool}'.")
-        self.param = param
-        self.tool = tool
-
 
 # ---------------------------------------------------------------------------
 # Tool Registry
 # ---------------------------------------------------------------------------
 
-TOOL_REGISTRY: dict[str, dict[str, list[str]]] = {
+TOOL_REGISTRY: dict[str, dict[str, Any]] = {
     "generate_email_draft": {
         "description": (
             "Generate a professional outreach email body using AI. "
@@ -46,7 +24,10 @@ TOOL_REGISTRY: dict[str, dict[str, list[str]]] = {
         "optional": ["tone", "sender_name"],
     },
     "send_email": {
-        "description": "Send an email via Gmail SMTP. Requires subject and body — use generate_email_draft first if needed.",
+        "description": (
+            "Send an email via Gmail SMTP. "
+            "Requires subject and body — use generate_email_draft first if needed."
+        ),
         "required": ["to", "subject", "body"],
         "optional": ["cc"],
     },
@@ -61,13 +42,11 @@ TOOL_EXECUTORS: dict[str, Any] = {}
 
 
 def register_tool(name: str, func) -> None:
-    """Register an executor function for a named tool."""
     TOOL_EXECUTORS[name] = func
-    logger.info(f"[tools] Registered executor for tool: {name}")
+    logger.info(f"[agent.tools] Registered: {name}")
 
 
 def get_tool_descriptions() -> str:
-    """Return a formatted string of all available tools and their schemas."""
     lines = []
     for name, schema in TOOL_REGISTRY.items():
         req = ", ".join(schema["required"]) if schema["required"] else "none"
@@ -83,22 +62,17 @@ def get_tool_descriptions() -> str:
 # ---------------------------------------------------------------------------
 
 def validate_tool_call(action: dict) -> None:
-    """
-    Validate a single action dict against the tool registry.
-    Raises HallucinationError or MissingParameterError on failure.
-    """
     tool = action.get("tool", "")
     params = action.get("params", {})
 
     if tool not in TOOL_REGISTRY:
         raise HallucinationError(tool)
 
-    schema = TOOL_REGISTRY[tool]
-    for required_param in schema["required"]:
+    for required_param in TOOL_REGISTRY[tool]["required"]:
         if required_param not in params:
             raise MissingParameterError(required_param, tool)
 
-    logger.debug(f"[tools] Validation passed for tool: {tool}")
+    logger.debug(f"[agent.tools] Validation passed for tool: {tool}")
 
 
 # ---------------------------------------------------------------------------
@@ -106,89 +80,47 @@ def validate_tool_call(action: dict) -> None:
 # ---------------------------------------------------------------------------
 
 def tool_execute(action: dict) -> dict:
-    """Execute a validated tool action."""
     tool = action["tool"]
     params = action.get("params", {})
 
     if tool not in TOOL_EXECUTORS:
         raise AgentError(f"No executor registered for tool '{tool}'.")
 
-    logger.info(f"[tools] Executing tool={tool} params={params}")
+    logger.info(f"[agent.tools] Executing tool={tool} params={params}")
     return TOOL_EXECUTORS[tool](**params)
 
 
 # ---------------------------------------------------------------------------
-# Tool Executors
+# Executor factory — receives EmailService via injection
 # ---------------------------------------------------------------------------
 
-def generate_email_draft_executor(
-    recipient: str,
-    purpose: str,
-    tone: str = "professional",
-    sender_name: str = "the sender",
-) -> dict:
+def build_executors(email_svc: EmailService) -> None:
     """
-    Uses the local Ollama LLM to generate an email body.
-    Returns the draft subject and body as a dict.
+    Register all tool executors using the injected EmailService.
+    Called once at startup from main.py.
+    This pattern allows swapping EmailService for an HTTP client
+    without touching any executor logic.
     """
-    prompt = (
-        f"Write a {tone} outreach email.\n"
-        f"From: {sender_name}\n"
-        f"To: {recipient}\n"
-        f"Purpose: {purpose}\n\n"
-        "Return ONLY a JSON object with two keys: 'subject' (string) and 'body' (string). "
-        "No markdown, no explanation."
+    register_tool(
+        "generate_email_draft",
+        lambda recipient, purpose, tone="professional", sender_name="the sender": (
+            email_svc.generate_draft(
+                recipient=recipient,
+                purpose=purpose,
+                tone=tone,
+                sender_name=sender_name,
+            )
+        ),
     )
 
-    payload = {
-        "model": OLLAMA_MODEL,
-        "prompt": prompt,
-        "stream": False,
-        "format": "json",
-        "options": {"temperature": 0.7},
-    }
+    register_tool(
+        "send_email",
+        lambda to, subject, body, cc=None: email_svc.send(
+            to=to, subject=subject, body=body, cc=cc
+        ),
+    )
 
-    try:
-        resp = requests.post(
-            f"{OLLAMA_BASE_URL}/api/generate",
-            json=payload,
-            timeout=120,
-        )
-        resp.raise_for_status()
-        raw = resp.json().get("response", "{}")
-
-        import json, re
-        try:
-            draft = json.loads(raw)
-        except json.JSONDecodeError:
-            match = re.search(r"\{.*\}", raw, re.DOTALL)
-            draft = json.loads(match.group(0)) if match else {}
-
-        subject = draft.get("subject", f"Outreach: {purpose[:50]}")
-        body = draft.get("body", raw)
-
-        logger.info(f"[generate_email_draft] Generated draft for recipient={recipient}")
-        return {"subject": subject, "body": body, "recipient": recipient}
-
-    except Exception as e:
-        raise AgentError(f"Failed to generate email draft: {e}")
-
-
-def send_email_executor(to: str, subject: str, body: str, cc: str = None) -> dict:
-    """Send a real email via Gmail SMTP."""
-    return send_real_email(to=to, subject=subject, body=body, cc=cc)
-
-
-def list_sent_emails_executor(limit: int = 5) -> dict:
-    """Return a list of recently sent emails from the log."""
-    emails = get_sent_emails(limit=int(limit))
-    return {
-        "count": len(emails),
-        "emails": emails,
-    }
-
-
-# Register all executors at module load time
-register_tool("generate_email_draft", generate_email_draft_executor)
-register_tool("send_email", send_email_executor)
-register_tool("list_sent_emails", list_sent_emails_executor)
+    register_tool(
+        "list_sent_emails",
+        lambda limit=5: email_svc.list_sent(limit=limit),
+    )
