@@ -28,6 +28,9 @@ def _call_ollama(prompt: str) -> str:
         "prompt": prompt,
         "stream": False,
         "format": "json",
+        "options": {
+            "temperature": 0.0
+        }
     }
     try:
         resp = requests.post(
