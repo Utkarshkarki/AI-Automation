@@ -109,34 +109,43 @@ def list_campaigns(db: Session) -> list[dict]:
     ]
 
 
-def link_contact_to_campaign(db: Session, contact_email: str, campaign_id: int, template_id: int):
+def link_contact_to_campaign(db: Session, contact_email: str, campaign_id: int, template_id: int, delay_days: list[int] = None):
     """
-    Queue a contact for a campaign by creating an unsent Email record 
-    linked to the campaign and template.
+    Queue a contact for a campaign. If delay_days is provided (e.g. [0, 3, 7]), 
+    it creates a sequence of scheduled emails.
     """
+    if delay_days is None:
+        delay_days = [0]
+        
     contact = get_contact_by_email(db, contact_email)
     if not contact:
         raise ValueError(f"Contact {contact_email} not found")
         
-    # Check if already queued
+    # Check if already queued for this campaign to prevent duplicates
     existing = db.query(Email).filter(
-        Email.contact_id == contact["id"],  # We need to fix get_contact_by_email to return id or fetch the raw contact
+        Email.contact_id == contact["id"],
         Email.campaign_id == campaign_id
     ).first()
     
     if not existing:
+        from datetime import datetime, timedelta
         contact_record = db.query(Contact).filter(Contact.email == contact_email).first()
-        email_record = Email(
-            contact_id=contact_record.id,
-            campaign_id=campaign_id,
-            template_id=template_id,
-            sender_email="queued",  # Will be updated when sent
-            recipient_email=contact_email,
-            subject="queued",
-            body="queued",
-            status="queued"
-        )
-        db.add(email_record)
+        
+        for delay in delay_days:
+            schedule_time = datetime.utcnow() + timedelta(days=delay)
+            
+            email_record = Email(
+                contact_id=contact_record.id,
+                campaign_id=campaign_id,
+                template_id=template_id,
+                sender_email="queued",
+                recipient_email=contact_email,
+                subject="queued",
+                body="queued",
+                status="queued",
+                scheduled_for=schedule_time
+            )
+            db.add(email_record)
         db.commit()
 
 

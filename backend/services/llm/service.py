@@ -107,6 +107,40 @@ class LLMService:
         logger.error("[llm.service] All retries exhausted. Returning fallback.")
         return fallback
 
+    def classify_reply(self, text: str) -> str:
+        """Classify an email reply into categories."""
+        if not text.strip():
+            return "unknown"
+            
+        prompt = f"""
+        Classify the following email reply into EXACTLY ONE of these categories:
+        - interested (they want to learn more, book a call, or asked a positive question)
+        - not_now (they are not interested right now, try again later)
+        - unsubscribe (they want to be removed, "stop", "take me off your list")
+        - referral (they pointed to someone else)
+        - ooo (Out of office / vacation auto-reply)
+        - unknown (none of the above)
+
+        Respond with ONLY the category name. No other text.
+
+        Email Reply:
+        {text[:1000]}
+        """
+        
+        try:
+            raw = call_generate(prompt)
+            cat = raw.strip().lower()
+            valid = ["interested", "not_now", "unsubscribe", "referral", "ooo", "unknown"]
+            if cat in valid:
+                return cat
+            # Fallback parsing if LLM is chatty
+            for v in valid:
+                if v in cat:
+                    return v
+            return "unknown"
+        except Exception:
+            return "unknown"
+
     def check_health(self) -> dict:
         """Check if Ollama is running and the configured model is available."""
         try:

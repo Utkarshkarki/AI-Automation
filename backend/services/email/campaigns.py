@@ -3,6 +3,8 @@ services/email/campaigns.py — Background scheduler for drip campaigns.
 """
 import logging
 import time
+import random
+from datetime import datetime, timedelta
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
@@ -27,20 +29,42 @@ def shutdown_scheduler():
         scheduler.shutdown()
         logger.info("[campaigns] Background scheduler stopped")
 
+DAILY_SEND_LIMIT = 50
+daily_send_count = 0
+last_reset_date = datetime.utcnow().date()
+
 def process_queued_emails():
     """
-    Fetch up to 5 queued emails and send them.
-    This function runs periodically.
+    Fetch up to 5 queued emails that are scheduled for <= NOW and send them.
+    Respects daily limits and adds random delays.
     """
+    global daily_send_count, last_reset_date
+    
+    # Reset daily limit
+    today = datetime.utcnow().date()
+    if today != last_reset_date:
+        daily_send_count = 0
+        last_reset_date = today
+
+    if daily_send_count >= DAILY_SEND_LIMIT:
+        logger.info(f"[campaigns] Daily limit ({DAILY_SEND_LIMIT}) reached. Pausing until tomorrow.")
+        return
+
     with SessionLocal() as db:
-        # Find queued emails
-        queued = db.query(Email).filter(Email.status == "queued").limit(5).all()
+        # Find queued emails ready to send
+        queued = db.query(Email).filter(
+            Email.status == "queued",
+            Email.scheduled_for <= datetime.utcnow()
+        ).limit(5).all()
         
         if not queued:
             return
 
         logger.info(f"[campaigns] Processing {len(queued)} queued emails")
         for email_record in queued:
+            if daily_send_count >= DAILY_SEND_LIMIT:
+                break
+                
             try:
                 # Need to resolve template
                 if not email_record.template_id:
@@ -81,19 +105,33 @@ def process_queued_emails():
                 email_record.body = body
                 db.commit()
                 
-                # Small sleep to prevent rate limiting issues with SMTP
-                time.sleep(2)
+                daily_send_count += 1
+                
+                # Random delay to mimic human behavior and protect deliverability
+                delay = random.randint(15, 45)
+                logger.info(f"[campaigns] Sleeping {delay}s for deliverability protection")
+                time.sleep(delay)
                 
             except Exception as e:
                 logger.error(f"[campaigns] Failed to send email {email_record.id}: {e}")
                 email_record.status = "failed"
                 db.commit()
 
-# Register the job to run every 1 minute (adjust interval for 20/day pacing in real life)
+# Register the drip campaign job to run every 1 minute
 scheduler.add_job(
     process_queued_emails,
     trigger=IntervalTrigger(minutes=1),
     id="drip_campaign_job",
     name="Process queued campaign emails",
+    replace_existing=True,
+)
+
+# Register the IMAP reply detection job to run every 5 minutes
+from .imap_worker import check_replies
+scheduler.add_job(
+    check_replies,
+    trigger=IntervalTrigger(minutes=5),
+    id="imap_reply_check_job",
+    name="Check IMAP for replies",
     replace_existing=True,
 )

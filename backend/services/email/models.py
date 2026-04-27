@@ -84,9 +84,10 @@ class Email(Base):
     cc_email = Column(String)
     subject = Column(String, nullable=False)
     body = Column(Text, nullable=False)
-    status = Column(String, default="sent")  # sent, failed, bounced
+    status = Column(String, default="sent")  # sent, failed, bounced, queued, paused, cancelled
 
     sent_at = Column(DateTime, default=datetime.utcnow)
+    scheduled_for = Column(DateTime, default=datetime.utcnow)
 
     user = relationship("User", back_populates="emails")
     contact = relationship("Contact", back_populates="emails")

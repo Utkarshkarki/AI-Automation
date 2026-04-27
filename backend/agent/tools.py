@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 TOOL_REGISTRY: dict[str, dict[str, Any]] = {
-    "generate_email_draft": {
+    "generate_email": {
         "description": (
             "Generate a professional outreach email body using AI. "
             "Call this BEFORE send_email when the user has not provided the full email text."
@@ -25,8 +25,8 @@ TOOL_REGISTRY: dict[str, dict[str, Any]] = {
     },
     "send_email": {
         "description": (
-            "Send an email via Gmail SMTP. "
-            "Requires subject and body — use generate_email_draft first if needed."
+            "Send a single email via Gmail SMTP immediately. "
+            "Requires subject and body — use generate_email first if needed."
         ),
         "required": ["to", "subject", "body"],
         "optional": ["cc"],
@@ -66,9 +66,24 @@ TOOL_REGISTRY: dict[str, dict[str, Any]] = {
         "required": ["name"],
         "optional": ["description"],
     },
-    "start_campaign": {
-        "description": "Start sending a campaign to a list of contacts using a specific template.",
+    "schedule_campaign": {
+        "description": "Start sending a campaign to a list of contacts. Can schedule multi-day follow-up sequences (e.g. Day 0, Day 3, Day 7).",
         "required": ["campaign_id", "template_id", "contact_emails"],
+        "optional": ["delay_days"],
+    },
+    "track_replies": {
+        "description": "Check the database for detected email replies and their AI-classified intents (interested, unsubscribe, etc).",
+        "required": [],
+        "optional": [],
+    },
+    "pause_campaign": {
+        "description": "Pause all currently queued emails for a specific campaign.",
+        "required": ["campaign_id"],
+        "optional": [],
+    },
+    "get_analytics": {
+        "description": "Get overall deliverability analytics: sent, queued, failed, and cancelled emails.",
+        "required": [],
         "optional": [],
     },
 }
@@ -137,7 +152,7 @@ def build_executors(email_svc: EmailService) -> None:
     without touching any executor logic.
     """
     register_tool(
-        "generate_email_draft",
+        "generate_email",
         lambda recipient, purpose, tone="professional", sender_name="the sender": (
             email_svc.generate_draft(
                 recipient=recipient,
@@ -191,6 +206,21 @@ def build_executors(email_svc: EmailService) -> None:
     )
 
     register_tool(
-        "start_campaign",
-        lambda campaign_id, template_id, contact_emails: email_svc.start_campaign(campaign_id=campaign_id, template_id=template_id, contact_emails=contact_emails),
+        "schedule_campaign",
+        lambda campaign_id, template_id, contact_emails, delay_days=None: email_svc.schedule_campaign(campaign_id=campaign_id, template_id=template_id, contact_emails=contact_emails, delay_days=delay_days),
+    )
+
+    register_tool(
+        "track_replies",
+        lambda: email_svc.track_replies(),
+    )
+
+    register_tool(
+        "pause_campaign",
+        lambda campaign_id: email_svc.pause_campaign(campaign_id=campaign_id),
+    )
+
+    register_tool(
+        "get_analytics",
+        lambda: email_svc.get_analytics(),
     )

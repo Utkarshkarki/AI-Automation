@@ -177,16 +177,65 @@ class EmailService:
             c = create_campaign(db, name, description)
             return {"status": "success", "campaign_id": c.id}
             
-    def start_campaign(self, campaign_id: int, template_id: int, contact_emails: list[str]) -> dict:
-        """Queue a list of contacts into a campaign for background sending."""
+    def schedule_campaign(self, campaign_id: int, template_id: int, contact_emails: list[str], delay_days: list[int] = None) -> dict:
+        """Queue a list of contacts into a sequence campaign for background sending."""
+        if delay_days is None:
+            delay_days = [0]
         queued = 0
         with SessionLocal() as db:
             for email in contact_emails:
                 try:
-                    link_contact_to_campaign(db, email, campaign_id, template_id)
-                    queued += 1
+                    link_contact_to_campaign(db, email, campaign_id, template_id, delay_days)
+                    queued += len(delay_days)
                 except Exception as e:
                     logger.error(f"Failed to queue {email}: {e}")
                     
-        return {"status": "success", "queued_count": queued}
+        return {"status": "success", "total_emails_queued": queued}
+
+    def track_replies(self) -> dict:
+        """Get stats on received replies from the database."""
+        from .models import Event
+        with SessionLocal() as db:
+            replies = db.query(Event).filter(Event.event_type == "reply").all()
+            
+            intents = {}
+            for r in replies:
+                try:
+                    meta = json.loads(r.metadata_json)
+                    intent = meta.get("intent", "unknown")
+                    intents[intent] = intents.get(intent, 0) + 1
+                except:
+                    pass
+                    
+            return {
+                "total_replies": len(replies),
+                "breakdown": intents
+            }
+
+    def pause_campaign(self, campaign_id: int) -> dict:
+        """Pause all queued emails for a campaign."""
+        from .models import Email as EmailModel
+        with SessionLocal() as db:
+            updated = db.query(EmailModel).filter(
+                EmailModel.campaign_id == campaign_id,
+                EmailModel.status == "queued"
+            ).update({"status": "paused"})
+            db.commit()
+            return {"status": "success", "paused_emails_count": updated}
+
+    def get_analytics(self) -> dict:
+        """Get overall email deliverability analytics."""
+        from .models import Email as EmailModel
+        with SessionLocal() as db:
+            sent = db.query(EmailModel).filter(EmailModel.status == "sent").count()
+            queued = db.query(EmailModel).filter(EmailModel.status == "queued").count()
+            failed = db.query(EmailModel).filter(EmailModel.status == "failed").count()
+            cancelled = db.query(EmailModel).filter(EmailModel.status == "cancelled").count()
+            
+            return {
+                "sent": sent,
+                "queued": queued,
+                "failed": failed,
+                "cancelled_due_to_replies": cancelled
+            }
 
