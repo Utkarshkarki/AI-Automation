@@ -151,28 +151,28 @@ If the agent scores < 0.5 confidence, it halts execution and flags the output fo
 ┌──────────────────────────────────────────────────────────────┐
 │                   React + Vite (Port 5173 / 80)              │
 │  ┌────────────────┐  ┌──────────────────┐  ┌─────────────┐   │
-│  │ 📊 Metrics     │  │  💬 Chat Panel   │  │ 🧠 Memory   │   │
+│  │ 📊 Metrics     │  │  💬 Chat Panel   │  │ 🧠 Memory  │   │
 │  │   Sidebar      │  │   (center)       │  │   Panel     │   │
 │  └────────────────┘  └──────────────────┘  └─────────────┘   │
 └─────────────────────────────┬────────────────────────────────┘
                               │  REST  (JSON)
 ┌─────────────────────────────▼────────────────────────────────┐
-│                    FastAPI Backend (Port 8000)                │
+│                    FastAPI Backend (Port 8000)               │
 │                                                              │
 │   /run ──► agent_loop()                                      │
 │                │                                             │
-│     ┌──────────┼────────────┬────────────────┐              │
-│     ▼          ▼            ▼                ▼              │
-│  memory.py  llm.py      tools.py      rate_limiter.py       │
-│  (FAISS +   (Ollama +   (Registry +   (Sliding window)      │
-│  ranking)   retry)      validation)                         │
+│     ┌──────────┼────────────┬────────────────┐               │
+│     ▼          ▼            ▼                ▼               │
+│  memory.py  llm.py      tools.py      rate_limiter.py        │
+│  (FAISS +   (Ollama +   (Registry +   (Sliding window)       │
+│  ranking)   retry)      validation)                          │
 │     │            │                                           │
-│  metrics.py   loop.py   ◄── orchestrates all of the above   │
+│  metrics.py   loop.py   ◄── orchestrates all of the above    │
 └─────────────────────────────┬────────────────────────────────┘
                               │
               ┌───────────────▼───────────────┐
-              │         Ollama (Port 11434)    │
-              │   llama3 · mistral · qwen:7b   │
+              │         Ollama (Port 11434)   │
+              │   llama3 · mistral · qwen:7b  │
               └───────────────────────────────┘
 ```
 
