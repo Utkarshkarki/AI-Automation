@@ -33,17 +33,7 @@ TOOL_REGISTRY: dict[str, dict[str, list[str]]] = {
         "description": "Send an email to a recipient.",
         "required": ["to", "message"],
         "optional": ["cc", "subject"],
-    },
-    "query_database": {
-        "description": "Run a SELECT query against the database.",
-        "required": ["query"],
-        "optional": ["limit"],
-    },
-    "create_lead": {
-        "description": "Create a new CRM lead from an email address.",
-        "required": ["email"],
-        "optional": ["name", "company"],
-    },
+    },    
 }
 
 TOOL_EXECUTORS: dict[str, Any] = {}
@@ -120,25 +110,9 @@ def send_email_executor(to: str, message: str, cc: str = None, subject: str = No
     }
 
 
-def query_database_executor(query: str, limit: int = 10) -> dict:
-    if any(kw in query.upper() for kw in ["DROP", "DELETE", "TRUNCATE", "INSERT", "UPDATE"]):
-        raise AgentError("Unsafe query detected: only SELECT queries are allowed.")
-    logger.info(f"[query_database] query={query}")
-    return {"rows": [], "count": 0, "query": query}
 
-
-def create_lead_executor(email: str, name: str = None, company: str = None) -> dict:
-    logger.info(f"[create_lead] email={email} name={name}")
-    return {
-        "lead_id": f"LEAD-{abs(hash(email)) % 100000:05d}",
-        "email": email,
-        "name": name or "Unknown",
-        "company": company or "Unknown",
-        "status": "created",
-    }
 
 
 # Register all stubs at module load time
 register_tool("send_email", send_email_executor)
-register_tool("query_database", query_database_executor)
-register_tool("create_lead", create_lead_executor)
+
