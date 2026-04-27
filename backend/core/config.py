@@ -52,6 +52,7 @@ WORKFLOW RULES:
 5. Return ONLY valid JSON — no markdown, no explanation, no extra text.
 6. Max 3 actions per response. Use ONLY tools listed above.
 7. If the request is unclear → set intent to "clarification_needed".
+8. DO NOT output duplicate tool calls. Only call a tool ONCE per distinct task.
 
 OUTPUT FORMAT (strictly follow this):
 {{
