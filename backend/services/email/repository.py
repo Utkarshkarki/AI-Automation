@@ -95,6 +95,20 @@ def get_campaign(db: Session, campaign_id: int) -> Campaign:
     return db.query(Campaign).filter(Campaign.id == campaign_id).first()
 
 
+def list_campaigns(db: Session) -> list[dict]:
+    """Return all campaigns."""
+    campaigns = db.query(Campaign).all()
+    return [
+        {
+            "id": c.id,
+            "name": c.name,
+            "description": c.description,
+            "created_at": c.created_at.isoformat() if c.created_at else None,
+        }
+        for c in campaigns
+    ]
+
+
 def link_contact_to_campaign(db: Session, contact_email: str, campaign_id: int, template_id: int):
     """
     Queue a contact for a campaign by creating an unsent Email record 

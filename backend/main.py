@@ -154,6 +154,33 @@ def memory():
         "entries": memory_svc.get_all(),
     }
 
+
+@app.get("/api/contacts")
+def get_contacts():
+    """Return all contacts/leads from the database."""
+    with SessionLocal() as db:
+        from services.email.repository import list_all_contacts
+        contacts = list_all_contacts(db)
+    return {"contacts": contacts}
+
+
+@app.get("/api/templates")
+def get_templates():
+    """Return all email templates from the database."""
+    with SessionLocal() as db:
+        from services.email.repository import list_templates
+        templates = list_templates(db)
+    return {"templates": templates}
+
+
+@app.get("/api/campaigns")
+def get_campaigns():
+    """Return all campaigns from the database."""
+    with SessionLocal() as db:
+        from services.email.repository import list_campaigns
+        campaigns = list_campaigns(db)
+    return {"campaigns": campaigns}
+
 import csv
 import io
 

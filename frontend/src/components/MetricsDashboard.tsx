@@ -1,90 +1,91 @@
-import { useEffect, useState, type FC } from "react";
+import { useEffect, useState } from "react";
 import { fetchMetrics, type MetricsResponse } from "../api/agent";
+import { Activity, TrendingUp } from "lucide-react";
 
-const MetricsDashboard: FC = () => {
+export default function MetricsDashboard() {
   const [metrics, setMetrics] = useState<MetricsResponse | null>(null);
 
-  const load = async () => {
-    try {
-      const m = await fetchMetrics();
-      setMetrics(m);
-    } catch {
-      /* ignore if backend not ready */
-    }
-  };
-
   useEffect(() => {
+    const load = async () => {
+      try { setMetrics(await fetchMetrics()); } catch {}
+    };
     load();
     const iv = setInterval(load, 5000);
     return () => clearInterval(iv);
   }, []);
 
-  if (!metrics) {
-    return <div style={{ color: "var(--text-muted)", fontSize: 12 }}>Loading metrics…</div>;
-  }
+  if (!metrics) return (
+    <div className="text-xs text-slate-500 animate-pulse">Loading metrics…</div>
+  );
 
   const successRate = Math.round(metrics.success_rate * 100);
 
   return (
-    <div>
-      {/* Big stats */}
-      <div className="stats-grid">
-        <div className="stat-box">
-          <span className="stat-number">{metrics.total_runs}</span>
-          <span className="stat-label">Total Runs</span>
+    <div className="space-y-4">
+      {/* Stat Cards */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="stat-card">
+          <div className="flex items-center gap-1.5 mb-1">
+            <Activity className="w-3 h-3 text-brand-400" />
+            <span className="text-xs text-slate-500">Total Runs</span>
+          </div>
+          <div className="text-2xl font-bold text-slate-100">{metrics.total_runs}</div>
         </div>
-        <div className="stat-box">
-          <span className="stat-number">{successRate}%</span>
-          <span className="stat-label">Success Rate</span>
+        <div className="stat-card">
+          <div className="flex items-center gap-1.5 mb-1">
+            <TrendingUp className="w-3 h-3 text-emerald-400" />
+            <span className="text-xs text-slate-500">Success</span>
+          </div>
+          <div className="text-2xl font-bold text-emerald-400">{successRate}%</div>
         </div>
       </div>
 
-      {/* Success rate bar */}
-      <div className="progress-bar-wrap">
-        <div className="progress-bar-fill" style={{ width: `${successRate}%` }} />
-      </div>
-      <div style={{ fontSize: 10, color: "var(--text-muted)", marginBottom: 14 }}>
-        {metrics.successful_runs} / {metrics.total_runs} successful
+      {/* Progress Bar */}
+      <div>
+        <div className="flex justify-between text-xs text-slate-500 mb-1.5">
+          <span>Success Rate</span>
+          <span>{metrics.successful_runs}/{metrics.total_runs}</span>
+        </div>
+        <div className="h-1.5 bg-surface-700 rounded-full overflow-hidden">
+          <div
+            className="h-full bg-gradient-to-r from-brand-500 to-accent-400 rounded-full transition-all duration-700"
+            style={{ width: `${successRate}%` }}
+          />
+        </div>
       </div>
 
       {/* Intents */}
-      <div className="section-title">Intents Detected</div>
-      {Object.keys(metrics.intents).length === 0 ? (
-        <div style={{ color: "var(--text-muted)", fontSize: 12 }}>No data yet</div>
-      ) : (
-        Object.entries(metrics.intents)
-          .sort(([, a], [, b]) => b - a)
-          .map(([intent, count]) => (
-            <div key={intent} className="metric-item">
-              <span className="metric-label" style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 11 }}>
-                {intent}
-              </span>
-              <span className="metric-value">{count}</span>
-            </div>
-          ))
+      {Object.keys(metrics.intents).length > 0 && (
+        <div>
+          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Intents</div>
+          <div className="space-y-1.5">
+            {Object.entries(metrics.intents).sort(([,a],[,b]) => b-a).map(([intent, count]) => (
+              <div key={intent} className="flex items-center justify-between">
+                <span className="text-xs text-slate-400 font-mono truncate">{intent}</span>
+                <span className="text-xs text-brand-400 font-medium ml-2">{count}</span>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
 
       {/* Tools */}
       {Object.keys(metrics.tools).length > 0 && (
-        <>
-          <div className="section-title" style={{ marginTop: 16 }}>Tool Usage</div>
-          {Object.entries(metrics.tools).map(([tool, counts]) => (
-            <div key={tool} className="metric-item" style={{ flexDirection: "column", alignItems: "flex-start", gap: 4 }}>
-              <span className="tool-name">{tool}</span>
-              <div style={{ display: "flex", gap: 10 }}>
-                <span style={{ fontSize: 11, color: "var(--accent-emerald)" }}>
-                  ✓ {counts.success ?? 0}
-                </span>
-                <span style={{ fontSize: 11, color: "var(--accent-rose)" }}>
-                  ✗ {counts.fail ?? 0}
-                </span>
+        <div>
+          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Tools</div>
+          <div className="space-y-1.5">
+            {Object.entries(metrics.tools).map(([tool, counts]) => (
+              <div key={tool} className="glass-card px-3 py-2">
+                <div className="text-xs text-slate-300 font-medium mb-1">{tool}</div>
+                <div className="flex gap-3 text-xs">
+                  <span className="text-emerald-400">✓ {counts.success ?? 0}</span>
+                  <span className="text-red-400">✗ {counts.fail ?? 0}</span>
+                </div>
               </div>
-            </div>
-          ))}
-        </>
+            ))}
+          </div>
+        </div>
       )}
     </div>
   );
-};
-
-export default MetricsDashboard;
+}
