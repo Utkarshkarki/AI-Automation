@@ -4,10 +4,10 @@ import MessageBubble, { type Message } from "./MessageBubble";
 import type { MemoryEntry } from "../api/agent";
 
 const EXAMPLES = [
-  "Send an email to alice@example.com about the project kickoff",
-  "Create a lead for bob@acme.com from Acme Corp",
-  "Query the database for all users who signed up this week",
-  "Send a follow-up email to the sales team about Q2 targets",
+  "Draft and send a cold outreach email to ceo@startup.com about my SaaS product",
+  "Write a follow-up email to john@company.com after our meeting yesterday",
+  "Send a partnership proposal to partner@brand.com from Utkarsh",
+  "Show me the last 5 emails I sent",
 ];
 
 interface Props {
@@ -103,10 +103,10 @@ const ChatInterface: FC<Props> = ({ onMemoryUpdate }) => {
       <div className="messages-list">
         {messages.length === 0 && !loading && (
           <div className="empty-state">
-            <div className="empty-state-icon">🤖</div>
-            <div className="empty-state-title">AI Automation Agent</div>
+            <div className="empty-state-icon">✉️</div>
+            <div className="empty-state-title">Email Outreach Agent</div>
             <div className="empty-state-sub">
-              Describe a task and the agent will plan and execute it using the available tools.
+              Describe who you want to reach and why — the agent will draft and send the perfect email.
             </div>
             <div className="example-prompts">
               {EXAMPLES.map((ex) => (
@@ -164,7 +164,7 @@ const ChatInterface: FC<Props> = ({ onMemoryUpdate }) => {
           </button>
         </form>
         <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 8, textAlign: "center" }}>
-          Tools: send_email · query_database · create_lead &nbsp;·&nbsp; powered by Ollama
+          Tools: generate_email_draft · send_email · list_sent_emails &nbsp;·&nbsp; powered by Ollama
         </div>
       </div>
     </div>

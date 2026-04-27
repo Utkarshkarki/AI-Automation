@@ -37,11 +37,11 @@ export default function App() {
                 <stop offset="100%" stopColor="#818cf8" />
               </linearGradient>
             </defs>
-            <circle cx="12" cy="12" r="3" />
-            <path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83" />
+            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+            <polyline points="22,6 12,13 2,6" />
           </svg>
-          AI Automation Agent &nbsp;
-          <span style={{ fontWeight: 300, color: "var(--text-muted)", fontSize: 12 }}>v4.0</span>
+          Email Outreach Agent &nbsp;
+          <span style={{ fontWeight: 300, color: "var(--text-muted)", fontSize: 12 }}>v5.0</span>
         </div>
 
         <div className="header-status">
