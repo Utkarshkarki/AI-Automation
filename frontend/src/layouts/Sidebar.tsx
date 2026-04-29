@@ -15,6 +15,7 @@ const navItems = [
   { to: "/app/leads", icon: Users, label: "Leads" },
   { to: "/app/campaigns", icon: Megaphone, label: "Campaigns" },
   { to: "/app/templates", icon: FileText, label: "Templates" },
+  { to: "/app/billing", icon: Zap, label: "Billing & Plans" },
 ];
 
 export default function Sidebar() {

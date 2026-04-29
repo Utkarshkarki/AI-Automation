@@ -5,6 +5,7 @@ import ChatPage from "./pages/ChatPage";
 import Leads from "./pages/Leads";
 import Templates from "./pages/Templates";
 import Campaigns from "./pages/Campaigns";
+import Billing from "./pages/Billing";
 import Landing from "./pages/Landing";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -33,6 +34,7 @@ export default function App() {
           <Route path="leads" element={<Leads />} />
           <Route path="templates" element={<Templates />} />
           <Route path="campaigns" element={<Campaigns />} />
+          <Route path="billing" element={<Billing />} />
         </Route>
       </Routes>
     </BrowserRouter>
