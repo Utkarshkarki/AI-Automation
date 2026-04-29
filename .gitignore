@@ -55,3 +55,18 @@ backend/sent_emails.json
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# IDEs and Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# FAISS Memory
+backend/faiss_index/
+backend/memory_store.json
+*.bin
+
+# Vite
+.vite/
+frontend/.eslintcache
