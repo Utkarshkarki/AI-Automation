@@ -9,12 +9,15 @@ from sqlalchemy.orm import Session
 from .models import Contact, Email, Template, Campaign
 
 
-def create_or_update_contact(db: Session, email: str, **kwargs) -> Contact:
+def create_or_update_contact(db: Session, email: str, user_id: str = None, **kwargs) -> Contact:
     """Find a contact by email or create a new one, updating any provided fields."""
-    contact = db.query(Contact).filter(Contact.email == email).first()
+    query = db.query(Contact).filter(Contact.email == email)
+    if user_id:
+        query = query.filter(Contact.user_id == user_id)
+    contact = query.first()
     
     if not contact:
-        contact = Contact(email=email)
+        contact = Contact(email=email, user_id=user_id)
         db.add(contact)
     
     # Update provided fields
@@ -27,9 +30,12 @@ def create_or_update_contact(db: Session, email: str, **kwargs) -> Contact:
     return contact
 
 
-def get_contact_by_email(db: Session, email: str) -> dict:
+def get_contact_by_email(db: Session, email: str, user_id: str = None) -> dict:
     """Retrieve a contact's rich context by email."""
-    contact = db.query(Contact).filter(Contact.email == email).first()
+    query = db.query(Contact).filter(Contact.email == email)
+    if user_id:
+        query = query.filter(Contact.user_id == user_id)
+    contact = query.first()
     if not contact:
         return None
     return {
@@ -46,9 +52,12 @@ def get_contact_by_email(db: Session, email: str) -> dict:
     }
 
 
-def list_all_contacts(db: Session) -> list[dict]:
+def list_all_contacts(db: Session, user_id: str = None) -> list[dict]:
     """Return all contacts in the database."""
-    contacts = db.query(Contact).all()
+    query = db.query(Contact)
+    if user_id:
+        query = query.filter(Contact.user_id == user_id)
+    contacts = query.all()
     return [
         {
             "email": c.email,
@@ -62,42 +71,54 @@ def list_all_contacts(db: Session) -> list[dict]:
 
 # --- Templates ---
 
-def create_template(db: Session, name: str, subject: str, body: str) -> Template:
+def create_template(db: Session, name: str, subject: str, body: str, user_id: str = None) -> Template:
     """Create a new email template."""
-    t = Template(name=name, subject=subject, body=body)
+    t = Template(name=name, subject=subject, body=body, user_id=user_id)
     db.add(t)
     db.commit()
     db.refresh(t)
     return t
 
 
-def get_template(db: Session, template_id: int) -> Template:
-    return db.query(Template).filter(Template.id == template_id).first()
+def get_template(db: Session, template_id: int, user_id: str = None) -> Template:
+    query = db.query(Template).filter(Template.id == template_id)
+    if user_id:
+        query = query.filter(Template.user_id == user_id)
+    return query.first()
 
 
-def list_templates(db: Session) -> list[dict]:
-    templates = db.query(Template).all()
+def list_templates(db: Session, user_id: str = None) -> list[dict]:
+    query = db.query(Template)
+    if user_id:
+        query = query.filter(Template.user_id == user_id)
+    templates = query.all()
     return [{"id": t.id, "name": t.name, "subject": t.subject, "body": t.body} for t in templates]
 
 
 # --- Campaigns ---
 
-def create_campaign(db: Session, name: str, description: str = None) -> Campaign:
+def create_campaign(db: Session, name: str, description: str = None, user_id: str = None) -> Campaign:
     """Create a new campaign."""
-    c = Campaign(name=name, description=description)
+    c = Campaign(name=name, description=description, user_id=user_id)
     db.add(c)
     db.commit()
     db.refresh(c)
     return c
 
 
-def get_campaign(db: Session, campaign_id: int) -> Campaign:
-    return db.query(Campaign).filter(Campaign.id == campaign_id).first()
+def get_campaign(db: Session, campaign_id: int, user_id: str = None) -> Campaign:
+    query = db.query(Campaign).filter(Campaign.id == campaign_id)
+    if user_id:
+        query = query.filter(Campaign.user_id == user_id)
+    return query.first()
 
 
-def list_campaigns(db: Session) -> list[dict]:
+def list_campaigns(db: Session, user_id: str = None) -> list[dict]:
     """Return all campaigns."""
-    campaigns = db.query(Campaign).all()
+    query = db.query(Campaign)
+    if user_id:
+        query = query.filter(Campaign.user_id == user_id)
+    campaigns = query.all()
     return [
         {
             "id": c.id,
@@ -109,7 +130,7 @@ def list_campaigns(db: Session) -> list[dict]:
     ]
 
 
-def link_contact_to_campaign(db: Session, contact_email: str, campaign_id: int, template_id: int, delay_days: list[int] = None):
+def link_contact_to_campaign(db: Session, contact_email: str, campaign_id: int, template_id: int, delay_days: list[int] = None, user_id: str = None):
     """
     Queue a contact for a campaign. If delay_days is provided (e.g. [0, 3, 7]), 
     it creates a sequence of scheduled emails.
@@ -117,7 +138,7 @@ def link_contact_to_campaign(db: Session, contact_email: str, campaign_id: int, 
     if delay_days is None:
         delay_days = [0]
         
-    contact = get_contact_by_email(db, contact_email)
+    contact = get_contact_by_email(db, contact_email, user_id)
     if not contact:
         raise ValueError(f"Contact {contact_email} not found")
         
@@ -136,6 +157,7 @@ def link_contact_to_campaign(db: Session, contact_email: str, campaign_id: int, 
             schedule_time = datetime.utcnow() + timedelta(days=delay)
             
             email_record = Email(
+                user_id=user_id,
                 contact_id=contact_record.id,
                 campaign_id=campaign_id,
                 template_id=template_id,
@@ -155,11 +177,12 @@ def link_contact_to_campaign(db: Session, contact_email: str, campaign_id: int, 
 
 # --- Emails ---
 
-def create_sent_email(db: Session, sender: str, to: str, subject: str, body: str, cc: str = None) -> Email:
+def create_sent_email(db: Session, sender: str, to: str, subject: str, body: str, cc: str = None, user_id: str = None) -> Email:
     """Record a newly sent email in the database."""
-    contact = create_or_update_contact(db, email=to)
+    contact = create_or_update_contact(db, email=to, user_id=user_id)
 
     email_record = Email(
+        user_id=user_id,
         contact_id=contact.id,
         sender_email=sender,
         recipient_email=to,
@@ -174,9 +197,12 @@ def create_sent_email(db: Session, sender: str, to: str, subject: str, body: str
     return email_record
 
 
-def get_recent_emails(db: Session, limit: int = 10) -> List[dict]:
+def get_recent_emails(db: Session, limit: int = 10, user_id: str = None) -> List[dict]:
     """Retrieve the most recent sent emails, formatted as dicts for the agent."""
-    emails = db.query(Email).order_by(Email.sent_at.desc()).limit(limit).all()
+    query = db.query(Email)
+    if user_id:
+        query = query.filter(Email.user_id == user_id)
+    emails = query.order_by(Email.sent_at.desc()).limit(limit).all()
     
     result = []
     for e in emails:

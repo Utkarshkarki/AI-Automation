@@ -1,11 +1,20 @@
-import sqlite3
+import os
+from dotenv import load_dotenv
 
-conn = sqlite3.connect('email_outreach.db')
-cursor = conn.cursor()
-try:
-    cursor.execute("ALTER TABLE emails ADD COLUMN scheduled_for DATETIME;")
-    print("Column added successfully.")
-except sqlite3.OperationalError as e:
-    print("Error:", e)
-conn.commit()
-conn.close()
+from services.email.database import init_db, engine
+from services.email.database import Base
+
+# Import all models to ensure they are registered with Base
+from services.email import models as email_models
+from services.auth import models as auth_models
+from services.payment import models as payment_models
+
+def main():
+    load_dotenv()
+    print("Database URL:", os.getenv("SUPABASE_DATABASE_URL")[:30] + "...")
+    print("Migrating Database tables...")
+    Base.metadata.create_all(bind=engine)
+    print("Done!")
+
+if __name__ == "__main__":
+    main()

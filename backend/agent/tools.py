@@ -129,9 +129,11 @@ def validate_tool_call(action: dict) -> None:
 # Execution
 # ---------------------------------------------------------------------------
 
-def tool_execute(action: dict) -> dict:
+def tool_execute(action: dict, user_id: str = None) -> dict:
     tool = action["tool"]
     params = action.get("params", {})
+    if user_id:
+        params["user_id"] = user_id
 
     if tool not in TOOL_EXECUTORS:
         raise AgentError(f"No executor registered for tool '{tool}'.")

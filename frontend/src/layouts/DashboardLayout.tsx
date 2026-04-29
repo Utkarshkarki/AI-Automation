@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { Outlet } from "react-router-dom";
 import Sidebar from "./Sidebar";
+import ChatButton from "../components/ChatButton";
 import { fetchHealth, type HealthResponse } from "../api/agent";
-import { Wifi, WifiOff, Database } from "lucide-react";
+import { Wifi, WifiOff, Database, LogOut } from "lucide-react";
+import { logout } from "../api/auth";
 
 export default function DashboardLayout() {
   const [health, setHealth] = useState<HealthResponse | null>(null);
@@ -41,14 +43,20 @@ export default function DashboardLayout() {
                 : <><WifiOff className="w-3 h-3" /> Ollama offline</>
               }
             </div>
+            <button onClick={logout} className="ml-4 text-slate-400 hover:text-slate-100 transition-colors">
+              <LogOut className="w-4 h-4" />
+            </button>
           </div>
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 overflow-auto p-6">
+        <main className="flex-1 overflow-auto p-6 relative">
           <Outlet />
         </main>
       </div>
+
+      {/* Global AI Chat Button */}
+      <ChatButton />
     </div>
   );
 }

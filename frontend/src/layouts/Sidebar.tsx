@@ -6,13 +6,15 @@ import {
   FileText,
   Mail,
   Zap,
+  Bot
 } from "lucide-react";
 
 const navItems = [
-  { to: "/", icon: LayoutDashboard, label: "Dashboard" },
-  { to: "/leads", icon: Users, label: "Leads" },
-  { to: "/campaigns", icon: Megaphone, label: "Campaigns" },
-  { to: "/templates", icon: FileText, label: "Templates" },
+  { to: "/app", icon: LayoutDashboard, label: "Dashboard" },
+  { to: "/app/chat", icon: Bot, label: "Command Center" },
+  { to: "/app/leads", icon: Users, label: "Leads" },
+  { to: "/app/campaigns", icon: Megaphone, label: "Campaigns" },
+  { to: "/app/templates", icon: FileText, label: "Templates" },
 ];
 
 export default function Sidebar() {
@@ -25,8 +27,8 @@ export default function Sidebar() {
             <Mail className="w-4 h-4 text-white" />
           </div>
           <div>
-            <div className="text-sm font-semibold text-slate-100">OutreachAI</div>
-            <div className="text-xs text-slate-500 font-mono">v6.0</div>
+            <div className="text-sm font-semibold text-slate-100">PersonaFlow</div>
+            <div className="text-xs text-slate-500 font-mono">SaaS Platform</div>
           </div>
         </div>
       </div>
@@ -40,7 +42,7 @@ export default function Sidebar() {
           <NavLink
             key={to}
             to={to}
-            end={to === "/"}
+            end={to === "/app"}
             className={({ isActive }) =>
               `nav-item ${isActive ? "active" : ""}`
             }

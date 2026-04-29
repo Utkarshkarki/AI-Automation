@@ -7,34 +7,34 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Primary brand palette
+        // Xtract Electric Violet Palette
         brand: {
-          50:  '#eef2ff',
-          100: '#e0e7ff',
-          200: '#c7d2fe',
-          300: '#a5b4fc',
-          400: '#818cf8',
-          500: '#6366f1',
-          600: '#4f46e5',
-          700: '#4338ca',
-          800: '#3730a3',
-          900: '#312e81',
+          50:  '#f5f3ff',
+          100: '#ede9fe',
+          200: '#ddd6fe',
+          300: '#c4b5fd',
+          400: '#a78bfa',
+          500: '#8b5cf6',
+          600: '#7c3aed', // Electric violet
+          700: '#6d28d9',
+          800: '#5b21b6',
+          900: '#4c1d95',
         },
-        // Dark surface palette
+        // Pure Black Surface Palette
         surface: {
-          950: '#05050a',
-          900: '#0d0d14',
-          800: '#13131f',
-          750: '#16162a',
-          700: '#1c1c2e',
-          600: '#22223a',
-          500: '#2a2a45',
-          400: '#3a3a5c',
+          950: '#000000', // Pure black
+          900: '#0a0a0a',
+          800: '#141414',
+          750: '#1f1f1f',
+          700: '#292929',
+          600: '#333333',
+          500: '#404040',
+          400: '#525252',
         },
-        // Accent (cyan)
+        // Accent (cyan/magenta mix)
         accent: {
-          400: '#22d3ee',
-          500: '#06b6d4',
+          400: '#d946ef',
+          500: '#c026d3',
         },
       },
       fontFamily: {
@@ -42,13 +42,13 @@ export default {
         mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
       },
       backgroundImage: {
-        'gradient-brand': 'linear-gradient(135deg, #6366f1 0%, #22d3ee 100%)',
-        'gradient-surface': 'linear-gradient(135deg, #13131f 0%, #1c1c2e 100%)',
+        'gradient-brand': 'linear-gradient(135deg, #7c3aed 0%, #c026d3 100%)',
+        'gradient-surface': 'linear-gradient(135deg, #0a0a0a 0%, #141414 100%)',
       },
       boxShadow: {
-        'glow-brand': '0 0 20px rgba(99, 102, 241, 0.3)',
-        'glow-accent': '0 0 20px rgba(34, 211, 238, 0.2)',
-        'card': '0 4px 24px rgba(0,0,0,0.4)',
+        'glow-brand': '0 0 25px rgba(124, 58, 237, 0.4)',
+        'glow-accent': '0 0 25px rgba(192, 38, 211, 0.3)',
+        'card': '0 4px 24px rgba(0,0,0,0.8)',
       },
       animation: {
         'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',

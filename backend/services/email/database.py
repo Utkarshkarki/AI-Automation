@@ -1,20 +1,24 @@
 """
 services/email/database.py — Database connection and session management.
 """
-from pathlib import Path
-
+import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
+from dotenv import load_dotenv
 
-# Database file will be created in the backend folder
-DB_PATH = Path(__file__).parent.parent.parent / "email_outreach.db"
-SQLALCHEMY_DATABASE_URL = f"sqlite:///{DB_PATH}"
+load_dotenv()
 
-# For SQLite, check_same_thread=False is needed if passing sessions across threads
-# though we mostly use them within standard request contexts.
-engine = create_engine(
-    SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
-)
+# Database connection to Supabase PostgreSQL
+SQLALCHEMY_DATABASE_URL = os.getenv("SUPABASE_DATABASE_URL")
+
+if SQLALCHEMY_DATABASE_URL and SQLALCHEMY_DATABASE_URL.startswith("postgres://"):
+    SQLALCHEMY_DATABASE_URL = SQLALCHEMY_DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
+if not SQLALCHEMY_DATABASE_URL:
+    # Fallback to local postgres or error out gracefully during init
+    SQLALCHEMY_DATABASE_URL = "postgresql://postgres:postgres@localhost:5432/postgres"
+
+engine = create_engine(SQLALCHEMY_DATABASE_URL)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 

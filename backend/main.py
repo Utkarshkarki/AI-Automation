@@ -30,6 +30,12 @@ from services.llm.service import LLMService
 from services.memory.service import MemoryService
 from services.metrics.service import MetricsService
 
+from core.middleware import GatewayMiddleware
+from services.auth.router import router as auth_router
+from services.auth.dependencies import get_current_user
+from services.auth.models import User
+from services.payment.router import router as payment_router
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
@@ -68,6 +74,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.add_middleware(GatewayMiddleware)
+
+app.include_router(auth_router)
+app.include_router(payment_router)
 
 
 # ---------------------------------------------------------------------------
@@ -123,12 +134,12 @@ def health():
 
 
 @app.post("/run")
-def run(req: RunRequest):
+def run(req: RunRequest, current_user: User = Depends(get_current_user)):
     """Run the agent loop with the given user input."""
     if not req.input or not req.input.strip():
         raise HTTPException(status_code=400, detail="Input cannot be empty.")
     try:
-        return agent_loop.run(req.input.strip())
+        return agent_loop.run(req.input.strip(), user_id=current_user.id)
     except RuntimeError as e:
         raise HTTPException(status_code=503, detail=str(e))
     except Exception as e:
@@ -137,14 +148,16 @@ def run(req: RunRequest):
 
 
 @app.get("/metrics")
-def metrics():
+def metrics(current_user: User = Depends(get_current_user)):
     """Return intent and tool usage metrics."""
+    # TODO: metrics_svc should be scoped to user in a full multi-tenant env
     return metrics_svc.get_snapshot()
 
 
 @app.get("/memory")
-def memory():
+def memory(current_user: User = Depends(get_current_user)):
     """Return all stored memory entries (embeddings excluded)."""
+    # TODO: memory_svc should be scoped to user
     return {
         "count": memory_svc.count,
         "entries": memory_svc.get_all(),
@@ -152,36 +165,36 @@ def memory():
 
 
 @app.get("/api/contacts")
-def get_contacts():
+def get_contacts(current_user: User = Depends(get_current_user)):
     """Return all contacts/leads from the database."""
     with SessionLocal() as db:
         from services.email.repository import list_all_contacts
-        contacts = list_all_contacts(db)
+        contacts = list_all_contacts(db, user_id=current_user.id)
     return {"contacts": contacts}
 
 
 @app.get("/api/templates")
-def get_templates():
+def get_templates(current_user: User = Depends(get_current_user)):
     """Return all email templates from the database."""
     with SessionLocal() as db:
         from services.email.repository import list_templates
-        templates = list_templates(db)
+        templates = list_templates(db, user_id=current_user.id)
     return {"templates": templates}
 
 
 @app.get("/api/campaigns")
-def get_campaigns():
+def get_campaigns(current_user: User = Depends(get_current_user)):
     """Return all campaigns from the database."""
     with SessionLocal() as db:
         from services.email.repository import list_campaigns
-        campaigns = list_campaigns(db)
+        campaigns = list_campaigns(db, user_id=current_user.id)
     return {"campaigns": campaigns}
 
 import csv
 import io
 
 @app.post("/api/leads/upload")
-async def upload_leads(file: UploadFile = File(...)):
+async def upload_leads(file: UploadFile = File(...), current_user: User = Depends(get_current_user)):
     """Upload a CSV file of leads and save them to the database."""
     if not file.filename.endswith('.csv'):
         raise HTTPException(status_code=400, detail="Only CSV files are allowed.")
@@ -210,7 +223,7 @@ async def upload_leads(file: UploadFile = File(...)):
             # Remove None values
             kwargs = {k: v for k, v in kwargs.items() if v}
             
-            create_or_update_contact(db, email=email, **kwargs)
+            create_or_update_contact(db, email=email, user_id=current_user.id, **kwargs)
             count += 1
             
     return {"status": "success", "message": f"Uploaded {count} leads"}

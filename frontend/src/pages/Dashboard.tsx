@@ -1,6 +1,5 @@
 import { useState } from "react";
 import MetricsDashboard from "../components/MetricsDashboard";
-import ChatInterface from "../components/ChatInterface";
 import type { MemoryEntry } from "../api/agent";
 import { Brain } from "lucide-react";
 
@@ -35,14 +34,13 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* Right: Chat */}
-      <div className="flex-1 glass-card overflow-hidden flex flex-col">
-        <div className="px-5 py-4 border-b border-surface-600/50">
-          <h3 className="text-sm font-semibold text-slate-200">AI Outreach Assistant</h3>
-          <p className="text-xs text-slate-500 mt-0.5">Chat to manage leads, draft emails, and run campaigns</p>
-        </div>
-        <div className="flex-1 overflow-hidden">
-          <ChatInterface onMemoryUpdate={setMemories} />
+      {/* Right: Activity/Overview */}
+      <div className="flex-1 overflow-auto flex flex-col gap-6">
+        <div className="glass-card p-6 flex flex-col items-center justify-center h-64 text-center">
+          <h3 className="text-xl font-semibold text-slate-200 mb-2">Welcome to PersonaFlow</h3>
+          <p className="text-slate-400 max-w-md mx-auto mb-6">
+            Your autonomous AI outreach agent is ready. Use the floating chat button in the bottom right to start drafting emails and managing campaigns.
+          </p>
         </div>
       </div>
     </div>

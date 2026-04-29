@@ -33,7 +33,7 @@ class AgentLoop:
         self.memory = memory
         self.metrics = metrics
 
-    def run(self, user_input: str) -> dict:
+    def run(self, user_input: str, user_id: str = None) -> dict:
         """
         Execute the full agent loop for a single user input.
 
@@ -80,7 +80,7 @@ class AgentLoop:
                 if is_rate_limited(tool):
                     raise Exception(f"Tool '{tool}' is currently rate limited.")
 
-                result = tool_execute(action)
+                result = tool_execute(action, user_id=user_id)
                 increment_rate(tool)
                 self.metrics.record_tool_result(tool, "success")
                 results.append({"tool": tool, "status": "success", "result": result})

@@ -61,10 +61,19 @@ export interface HealthResponse {
   error?: string;
 }
 
+export function getAuthHeaders(): Record<string, string> {
+  const token = localStorage.getItem("token");
+  if (!token) return { "Content-Type": "application/json" };
+  return {
+    "Content-Type": "application/json",
+    "Authorization": `Bearer ${token}`,
+  };
+}
+
 export async function runAgent(input: string): Promise<RunResponse> {
   const res = await fetch(`${BASE_URL}/run`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: getAuthHeaders(),
     body: JSON.stringify({ input }),
   });
   if (!res.ok) {
@@ -75,19 +84,19 @@ export async function runAgent(input: string): Promise<RunResponse> {
 }
 
 export async function fetchMetrics(): Promise<MetricsResponse> {
-  const res = await fetch(`${BASE_URL}/metrics`);
+  const res = await fetch(`${BASE_URL}/metrics`, { headers: getAuthHeaders() });
   if (!res.ok) throw new Error("Failed to fetch metrics");
   return res.json();
 }
 
 export async function fetchHealth(): Promise<HealthResponse> {
-  const res = await fetch(`${BASE_URL}/health`);
+  const res = await fetch(`${BASE_URL}/health`); // Health is usually public
   if (!res.ok) throw new Error("Failed to fetch health");
   return res.json();
 }
 
 export async function fetchMemory(): Promise<{ count: number; entries: MemoryEntry[] }> {
-  const res = await fetch(`${BASE_URL}/memory`);
+  const res = await fetch(`${BASE_URL}/memory`, { headers: getAuthHeaders() });
   if (!res.ok) throw new Error("Failed to fetch memory");
   return res.json();
 }

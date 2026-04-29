@@ -10,17 +10,6 @@ from sqlalchemy.orm import relationship
 from .database import Base
 
 
-class User(Base):
-    __tablename__ = "users"
-
-    id = Column(Integer, primary_key=True, index=True)
-    email = Column(String, unique=True, index=True, nullable=False)
-    name = Column(String)
-    created_at = Column(DateTime, default=datetime.utcnow)
-
-    emails = relationship("Email", back_populates="user")
-    campaigns = relationship("Campaign", back_populates="user")
-
 
 class Contact(Base):
     __tablename__ = "contacts"
@@ -40,6 +29,7 @@ class Contact(Base):
     status = Column(String, default="lead")
     last_contacted = Column(DateTime)
     created_at = Column(DateTime, default=datetime.utcnow)
+    user_id = Column(String, ForeignKey("users.id"))
 
     emails = relationship("Email", back_populates="contact")
 
@@ -50,10 +40,9 @@ class Campaign(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, index=True, nullable=False)
     description = Column(String)
-    user_id = Column(Integer, ForeignKey("users.id"))
+    user_id = Column(String, ForeignKey("users.id"))
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    user = relationship("User", back_populates="campaigns")
     emails = relationship("Email", back_populates="campaign")
 
 
@@ -64,6 +53,7 @@ class Template(Base):
     name = Column(String, index=True, nullable=False)
     subject = Column(String)
     body = Column(Text, nullable=False)
+    user_id = Column(String, ForeignKey("users.id"))
     created_at = Column(DateTime, default=datetime.utcnow)
 
     emails = relationship("Email", back_populates="template")
@@ -74,7 +64,7 @@ class Email(Base):
     __tablename__ = "emails"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=True)
     contact_id = Column(Integer, ForeignKey("contacts.id"), nullable=True)
     campaign_id = Column(Integer, ForeignKey("campaigns.id"), nullable=True)
     template_id = Column(Integer, ForeignKey("templates.id"), nullable=True)
@@ -89,7 +79,6 @@ class Email(Base):
     sent_at = Column(DateTime, default=datetime.utcnow)
     scheduled_for = Column(DateTime, default=datetime.utcnow)
 
-    user = relationship("User", back_populates="emails")
     contact = relationship("Contact", back_populates="emails")
     campaign = relationship("Campaign", back_populates="emails")
     template = relationship("Template", back_populates="emails")
