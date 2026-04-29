@@ -14,6 +14,19 @@ def main():
     print("Database URL:", os.getenv("SUPABASE_DATABASE_URL")[:30] + "...")
     print("Migrating Database tables...")
     Base.metadata.create_all(bind=engine)
+    
+    from services.email.database import SessionLocal
+    with SessionLocal() as db:
+        if db.query(payment_models.Plan).count() == 0:
+            print("Seeding default plans...")
+            plans = [
+                payment_models.Plan(name="Basic", price_inr=0, max_contacts=10, max_emails=10, max_campaigns=0),
+                payment_models.Plan(name="Standard", price_inr=999, max_contacts=20, max_emails=20, max_campaigns=2),
+                payment_models.Plan(name="Premium", price_inr=1999, max_contacts=40, max_emails=40, max_campaigns=5),
+            ]
+            db.add_all(plans)
+            db.commit()
+            
     print("Done!")
 
 if __name__ == "__main__":
