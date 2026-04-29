@@ -1,4 +1,4 @@
-export const BASE_URL = import.meta.env.PROD ? "/api" : "http://localhost:8000";
+export const BASE_URL = import.meta.env.PROD ? "/api" : "http://127.0.0.1:8000";
 
 export async function login(email: string, password: string) {
   const params = new URLSearchParams();

@@ -8,6 +8,8 @@ export default function Billing() {
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState<number | null>(null);
 
+  const [error, setError] = useState<string | null>(null);
+
   useEffect(() => {
     loadData();
     // Load Razorpay Script dynamically
@@ -20,15 +22,22 @@ export default function Billing() {
 
   const loadData = async () => {
     setLoading(true);
+    setError(null);
     try {
-      const [p, s] = await Promise.all([fetchPlans(), fetchSubscription()]);
+      const p = await fetchPlans();
       setPlans(p);
+    } catch (e: any) {
+      console.error(e);
+      setError("Failed to load plans. Is the backend running?");
+    }
+    
+    try {
+      const s = await fetchSubscription();
       setSubscription(s);
     } catch (e) {
       console.error(e);
-    } finally {
-      setLoading(false);
     }
+    setLoading(false);
   };
 
   const handleSubscribe = async (plan: Plan) => {
@@ -88,6 +97,12 @@ export default function Billing() {
         <h2 className="page-title">Billing & Plans</h2>
         <p className="page-subtitle">Manage your subscription and upgrade your outreach limits.</p>
       </div>
+
+      {error && (
+        <div className="p-4 mb-8 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm text-center">
+          {error}
+        </div>
+      )}
 
       {subscription?.has_active_subscription && (
         <div className="glass-card p-6 mb-10 flex items-center justify-between border-brand-500/30 bg-brand-900/10">
