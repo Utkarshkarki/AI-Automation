@@ -59,7 +59,7 @@
 
 ---
 
-## ✨ Features
+## ✨ Feature
 
 ### 1. 🤖 Agentic CRM Management
 No clicking through endless menus. Just tell the AI: *"Add Alice from TechCorp (alice@techcorp.com). Industry: SaaS. Pain point: churn is too high."* The agent uses its internal tools to update the relational database and pull this context later for hyper-personalization.
