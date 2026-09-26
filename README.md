@@ -42,7 +42,7 @@
 
 ---
 
-## 📋 Table of Contents
+## 📋 Table of Content
 
 - [Features](#-features)
 - [Tech Stack](#-tech-stack)
